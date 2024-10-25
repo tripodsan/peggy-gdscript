@@ -1368,7 +1368,7 @@ interface SourceOptionsBase<Output>
    * Format of the generated parser, valid only when `output` is not set to
    * `"parser"` (default: `"bare"`)
    */
-  format?: "amd" | "bare" | "commonjs" | "es" | "globals" | "umd";
+  format?: "gdscript";
 }
 
 export interface OutputFormatAmdCommonjsEs<Output extends SourceOutputs = "source">

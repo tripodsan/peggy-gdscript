@@ -5,18 +5,18 @@
 
 Expression
   = head:Term tail:(_ ("+" / "-") _ Term)* {
-      return tail.reduce(function(result, element) {
-        if (element[1] === "+") { return result + element[3]; }
-        if (element[1] === "-") { return result - element[3]; }
-      }, head);
+      return tail.reduce(func (result, element):
+        if element[1] == "+": return result + element[3]
+        if element[1] == "-": return result - element[3]
+      , head);
     }
 
 Term
   = head:Factor tail:(_ ("*" / "/") _ Factor)* {
-      return tail.reduce(function(result, element) {
-        if (element[1] === "*") { return result * element[3]; }
-        if (element[1] === "/") { return result / element[3]; }
-      }, head);
+      return tail.reduce(func (result, element):
+        if element[1] == "*": return result * element[3]
+        if element[1] == "/": return result / element[3]
+      , head);
     }
 
 Factor
@@ -24,7 +24,7 @@ Factor
   / Integer
 
 Integer "integer"
-  = _ [0-9]+ { return parseInt(text(), 10); }
+  = _ [0-9]+ { return text().to_int() }
 
 _ "whitespace"
   = [ \t\n\r]*

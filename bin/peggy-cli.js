@@ -19,7 +19,7 @@ const util = require("util");
 exports.CommanderError = CommanderError;
 exports.InvalidArgumentError = InvalidArgumentError;
 
-const MODULE_FORMATS = ["amd", "bare", "commonjs", "es", "globals", "umd"];
+const MODULE_FORMATS = ["gdscript"];
 
 /**
  * @typedef {object} TTYWritable
@@ -119,6 +119,10 @@ class PeggyCLI extends Command {
         "Name of a global variable into which the parser object is assigned to when no module loader is detected."
       )
       .option(
+        "-n, --class-name <variable>",
+        "Name of the gd script class name."
+      )
+      .option(
         "--extra-options <options>",
         "Additional options (in JSON format as an object) to pass to peggy.generate",
         val => addExtraOptionsJSON(this, val, "extra-options")
@@ -134,7 +138,7 @@ class PeggyCLI extends Command {
           "Format of the generated parser"
         )
           .choices(MODULE_FORMATS)
-          .default("commonjs")
+          .default("gdscript")
       )
       .addOption(new Option(
         "--library",

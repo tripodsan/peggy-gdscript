@@ -11,8 +11,8 @@ const path = require("path");
 const { InvalidArgumentError } = require("commander");
 const { isErrno, isER, replaceExt, select } = require("./utils.js");
 
-const MODULE_FORMATS_WITH_DEPS = ["amd", "commonjs", "es", "umd"];
-const MODULE_FORMATS_WITH_GLOBAL = ["globals", "umd"];
+const MODULE_FORMATS_WITH_DEPS = ["gdscript"];
+const MODULE_FORMATS_WITH_GLOBAL = ["gdscript"];
 
 // Options that aren't for the API directly:
 const PROG_OPTIONS = [
