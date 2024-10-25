@@ -4,10 +4,13 @@
 
 # Peggy
 
-Peggy is a simple parser generator for JavaScript that produces fast parsers
+Peggy is a simple parser generator for ~JavaScript~ GDScript that produces fast parsers
 with excellent error reporting. You can use it to process complex data or
 computer languages and build transformers, interpreters, compilers and other
 tools easily.
+
+Note: I totally butchered the original js generator. it would be cool, if we could add other
+target languages more easily, though.
 
 Peggy is the successor of [PEG.js](https://github.com/pegjs/pegjs).
 
