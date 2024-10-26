@@ -31,53 +31,34 @@
 // [4] http://boshi.inimino.org/3box/asof/1270029991384/PEG/ECMAScript_unified.peg
 
 {{
-  var TYPES_TO_PROPERTY_NAMES = {
-    CallExpression:   "callee",
-    MemberExpression: "object",
-  };
+# ------------ Globals ----------------
+const undefined = null
 
-  function filledArray(count, value) {
-    return Array.apply(null, new Array(count))
-      .map(function() { return value; });
-  }
+func filledArray(count, value):
+  var a = []
+  a.resize(count)
+  a.fill(value)
+  return a;
 
-  function extractOptional(optional, index) {
-    return optional ? optional[index] : null;
-  }
+func extractOptional(optional, index):
+  return optional[index] if optional else null
 
-  function extractList(list, index) {
-    return list.map(function(element) { return element[index]; });
-  }
+func extractList(list, index):
+  return list.map(func (element): return element[index])
 
-  function buildList(head, tail, index) {
-    return [head].concat(extractList(tail, index));
-  }
+func buildList(head, tail, index)->Array:
+  var a = [head]
+  a.append_array(extractList(tail, index))
+  return a
 
-  function buildBinaryExpression(head, tail) {
-    return tail.reduce(function(result, element) {
-      return {
-        type: "BinaryExpression",
-        operator: element[1],
-        left: result,
-        right: element[3]
-      };
-    }, head);
-  }
+func buildBinaryExpression(head, tail):
+  return tail.reduce(func(result, el): return AST.BinaryExpression.new(el[1], result, el[3]), head)
 
-  function buildLogicalExpression(head, tail) {
-    return tail.reduce(function(result, element) {
-      return {
-        type: "LogicalExpression",
-        operator: element[1],
-        left: result,
-        right: element[3]
-      };
-    }, head);
-  }
+func buildLogicalExpression(head, tail):
+  return tail.reduce(func(result, el): return AST.LogicalExpression.new(el[1], result, el[3]), head)
 
-  function optionalList(value) {
-    return value !== null ? value : [];
-  }
+func optionalList(value):
+  return value if value != null else [];
 }}
 
 Start
@@ -88,9 +69,9 @@ Start
 SourceCharacter
   = .
 
+// somehow there is a problem with \v, so we omit it here
 WhiteSpace "whitespace"
   = "\t"
-  / "\v"
   / "\f"
   / " "
   / "\u00A0"
@@ -125,11 +106,8 @@ Identifier
 
 IdentifierName "identifier"
   = head:IdentifierStart tail:IdentifierPart* {
-      return {
-        type: "Identifier",
-        name: head + tail.join("")
-      };
-    }
+    return AST.Identifier.new(head + "".join(tail))
+  }
 
 IdentifierStart
   = UnicodeLetter
@@ -214,11 +192,11 @@ Literal
   / RegularExpressionLiteral
 
 NullLiteral
-  = NullToken { return { type: "Literal", value: null }; }
+  = NullToken { return AST.Literal.new(null) }
 
 BooleanLiteral
-  = TrueToken  { return { type: "Literal", value: true  }; }
-  / FalseToken { return { type: "Literal", value: false }; }
+  = TrueToken  { return AST.Literal.new(true) }
+  / FalseToken { return AST.Literal.new(false) }
 
 // The "!(IdentifierStart / DecimalDigit)" predicate is not part of the official
 // grammar, it comes from text in section 7.8.3.
@@ -232,13 +210,13 @@ NumericLiteral "number"
 
 DecimalLiteral
   = DecimalIntegerLiteral "." DecimalDigit* ExponentPart? {
-      return { type: "Literal", value: parseFloat(text()) };
+      return AST.Literal.new(text().to_float())
     }
   / "." DecimalDigit+ ExponentPart? {
-      return { type: "Literal", value: parseFloat(text()) };
+      return AST.Literal.new(text().to_float())
     }
   / DecimalIntegerLiteral ExponentPart? {
-      return { type: "Literal", value: parseFloat(text()) };
+      return AST.Literal.new(text().to_float())
     }
 
 DecimalIntegerLiteral
@@ -262,19 +240,19 @@ SignedInteger
 
 HexIntegerLiteral
   = "0x"i digits:$HexDigit+ {
-      return { type: "Literal", value: parseInt(digits, 16) };
-     }
+    return AST.Literal.new(text().hex_to_int())
+   }
 
 HexDigit
   = [0-9a-f]i
 
 StringLiteral "string"
   = '"' chars:DoubleStringCharacter* '"' {
-      return { type: "Literal", value: chars.join("") };
-    }
+    return AST.Literal.new("".join(chars))
+  }
   / "'" chars:SingleStringCharacter* "'" {
-      return { type: "Literal", value: chars.join("") };
-    }
+    return AST.Literal.new("".join(chars))
+  }
 
 DoubleStringCharacter
   = !('"' / "\\" / LineTerminator) SourceCharacter { return text(); }
@@ -291,7 +269,7 @@ LineContinuation
 
 EscapeSequence
   = CharacterEscapeSequence
-  / "0" !DecimalDigit { return "\0"; }
+  / "0" !DecimalDigit { return "\\u0000"; }
   / HexEscapeSequence
   / UnicodeEscapeSequence
 
@@ -321,25 +299,17 @@ EscapeCharacter
 
 HexEscapeSequence
   = "x" digits:$(HexDigit HexDigit) {
-      return String.fromCharCode(parseInt(digits, 16));
+      return String.chr(digits.hex_to_int())
     }
 
 UnicodeEscapeSequence
   = "u" digits:$(HexDigit HexDigit HexDigit HexDigit) {
-      return String.fromCharCode(parseInt(digits, 16));
+      return String.chr(digits.hex_to_int())
     }
 
 RegularExpressionLiteral "regular expression"
   = "/" pattern:$RegularExpressionBody "/" flags:$RegularExpressionFlags {
-      var value;
-
-      try {
-        value = new RegExp(pattern, flags);
-      } catch (e) {
-        error(e.message);
-      }
-
-      return { type: "Literal", value: value };
+      return AST.Literal.new(RegExp.new(pattern))
     }
 
 RegularExpressionBody
@@ -494,7 +464,7 @@ EOF
 // ----- A.3 Expressions -----
 
 PrimaryExpression
-  = ThisToken { return { type: "ThisExpression" }; }
+  = ThisToken { return AST.ThisExpression.new() }
   / Identifier
   / Literal
   / ArrayLiteral
@@ -503,47 +473,40 @@ PrimaryExpression
 
 ArrayLiteral
   = "[" __ elision:(Elision __)? "]" {
-      return {
-        type: "ArrayExpression",
-        elements: optionalList(extractOptional(elision, 0))
-      };
+      return AST.ArrayExpression.new(optionalList(extractOptional(elision, 0)))
     }
   / "[" __ elements:ElementList __ "]" {
-      return {
-        type: "ArrayExpression",
-        elements: elements
-      };
+      return AST.ArrayExpression.new(elements)
     }
   / "[" __ elements:ElementList __ "," __ elision:(Elision __)? "]" {
-      return {
-        type: "ArrayExpression",
-        elements: elements.concat(optionalList(extractOptional(elision, 0)))
-      };
+      return AST.ArrayExpression.new(elements, optionalList(extractOptional(elision, 0)))
     }
 
 ElementList
   = head:(
       elision:(Elision __)? element:AssignmentExpression {
-        return optionalList(extractOptional(elision, 0)).concat(element);
+        return AST.ArrayExpression.new(optionalList(extractOptional(elision, 0)), element)
       }
     )
     tail:(
       __ "," __ elision:(Elision __)? element:AssignmentExpression {
-        return optionalList(extractOptional(elision, 0)).concat(element);
+        return AST.ArrayExpression.new(optionalList(extractOptional(elision, 0)), element)
       }
-    )*
-    { return Array.prototype.concat.apply(head, tail); }
+    )* {
+       head.append_array(tail)
+       return head
+    }
 
 Elision
   = "," commas:(__ ",")* { return filledArray(commas.length + 1, null); }
 
 ObjectLiteral
-  = "{" __ "}" { return { type: "ObjectExpression", properties: [] }; }
+  = "{" __ "}" { return AST.ObjectExpression.new([]) }
   / "{" __ properties:PropertyNameAndValueList __ "}" {
-      return { type: "ObjectExpression", properties: properties };
+      return AST.ObjectExpression.new(properties)
     }
   / "{" __ properties:PropertyNameAndValueList __ "," __ "}" {
-      return { type: "ObjectExpression", properties: properties };
+      return AST.ObjectExpression.new(properties)
     }
 PropertyNameAndValueList
   = head:PropertyAssignment tail:(__ "," __ PropertyAssignment)* {
@@ -552,39 +515,17 @@ PropertyNameAndValueList
 
 PropertyAssignment
   = key:PropertyName __ ":" __ value:AssignmentExpression {
-      return { type: "Property", key: key, value: value, kind: "init" };
+      return AST.PropertyExpression.new(key, value, &"init")
     }
   / GetToken __ key:PropertyName __
     "(" __ ")" __
-    "{" __ body:FunctionBody __ "}"
-    {
-      return {
-        type: "Property",
-        key: key,
-        value: {
-          type: "FunctionExpression",
-          id: null,
-          params: [],
-          body: body
-        },
-        kind: "get"
-      };
+    "{" __ body:FunctionBody __ "}" {
+      return AST.PropertyExpression.new(key, AST.FunctionExpression.new(null, [], body), &"get")
     }
   / SetToken __ key:PropertyName __
     "(" __ params:PropertySetParameterList __ ")" __
-    "{" __ body:FunctionBody __ "}"
-    {
-      return {
-        type: "Property",
-        key: key,
-        value: {
-          type: "FunctionExpression",
-          id: null,
-          params: params,
-          body: body
-        },
-        kind: "set"
-      };
+    "{" __ body:FunctionBody __ "}" {
+      return AST.PropertyExpression.new(key, AST.FunctionExpression.new(null, [], body), &"set")
     }
 
 PropertyName
@@ -600,65 +541,46 @@ MemberExpression
         PrimaryExpression
       / FunctionExpression
       / NewToken __ callee:MemberExpression __ args:Arguments {
-          return { type: "NewExpression", callee: callee, arguments: args };
+          return AST.NewExpression.new(callee, args)
         }
     )
     tail:(
         __ "[" __ property:Expression __ "]" {
-          return { property: property, computed: true };
+          return { property= property, computed= true }
         }
       / __ "." __ property:IdentifierName {
-          return { property: property, computed: false };
+          return { property= property, computed= false }
         }
     )*
     {
-      return tail.reduce(function(result, element) {
-        return {
-          type: "MemberExpression",
-          object: result,
-          property: element.property,
-          computed: element.computed
-        };
-      }, head);
+      return tail.reduce(func(obj, el): return AST.MemberExpression.new(obj, el.property, el.computed), head)
     }
 
 NewExpression
   = MemberExpression
   / NewToken __ callee:NewExpression {
-      return { type: "NewExpression", callee: callee, arguments: [] };
+      return AST.NewExpression.new(callee)
     }
 
 CallExpression
   = head:(
       callee:MemberExpression __ args:Arguments {
-        return { type: "CallExpression", callee: callee, arguments: args };
+        return AST.CallExpression.new(callee, args)
       }
     )
     tail:(
         __ args:Arguments {
-          return { type: "CallExpression", arguments: args };
+          return AST.CallExpression.new(null, args)
         }
       / __ "[" __ property:Expression __ "]" {
-          return {
-            type: "MemberExpression",
-            property: property,
-            computed: true
-          };
+          return AST.MemberExpression.new(null, property, true)
         }
       / __ "." __ property:IdentifierName {
-          return {
-            type: "MemberExpression",
-            property: property,
-            computed: false
-          };
+          return AST.MemberExpression.new(null, property, false)
         }
     )*
     {
-      return tail.reduce(function(result, element) {
-        element[TYPES_TO_PROPERTY_NAMES[element.type]] = result;
-
-        return element;
-      }, head);
+      return tail.reduce(func(result, element): return element.with_this(result), head)
     }
 
 Arguments
@@ -677,12 +599,7 @@ LeftHandSideExpression
 
 PostfixExpression
   = argument:LeftHandSideExpression _ operator:PostfixOperator {
-      return {
-        type: "UpdateExpression",
-        operator: operator,
-        argument: argument,
-        prefix: false
-      };
+      return AST.UpdateExpression.new(operator, argument, false)
     }
   / LeftHandSideExpression
 
@@ -693,16 +610,7 @@ PostfixOperator
 UnaryExpression
   = PostfixExpression
   / operator:UnaryOperator __ argument:UnaryExpression {
-      var type = (operator === "++" || operator === "--")
-        ? "UpdateExpression"
-        : "UnaryExpression";
-
-      return {
-        type: type,
-        operator: operator,
-        argument: argument,
-        prefix: true
-      };
+      return AST.UpdateExpression.new(operator, argument, true) if (operator == "++" || operator == "--") else AST.UnaryExpression.new(operator, argument, true)
     }
 
 UnaryOperator
@@ -864,12 +772,7 @@ ConditionalExpression
     "?" __ consequent:AssignmentExpression __
     ":" __ alternate:AssignmentExpression
     {
-      return {
-        type: "ConditionalExpression",
-        test: test,
-        consequent: consequent,
-        alternate: alternate
-      };
+      return AST.ConditionalExpression.new(test, consequent, alternate)
     }
   / LogicalORExpression
 
@@ -878,12 +781,7 @@ ConditionalExpressionNoIn
     "?" __ consequent:AssignmentExpression __
     ":" __ alternate:AssignmentExpressionNoIn
     {
-      return {
-        type: "ConditionalExpression",
-        test: test,
-        consequent: consequent,
-        alternate: alternate
-      };
+      return AST.ConditionalExpression.new(test, consequent, alternate)
     }
   / LogicalORExpressionNoIn
 
@@ -892,23 +790,13 @@ AssignmentExpression
     "=" !"=" __
     right:AssignmentExpression
     {
-      return {
-        type: "AssignmentExpression",
-        operator: "=",
-        left: left,
-        right: right
-      };
+      return AST.AssignmentExpression.new('=', left, right)
     }
   / left:LeftHandSideExpression __
     operator:AssignmentOperator __
     right:AssignmentExpression
     {
-      return {
-        type: "AssignmentExpression",
-        operator: operator,
-        left: left,
-        right: right
-      };
+      return AST.AssignmentExpression.new(operator, left, right)
     }
   / ConditionalExpression
 
@@ -917,23 +805,13 @@ AssignmentExpressionNoIn
     "=" !"=" __
     right:AssignmentExpressionNoIn
     {
-      return {
-        type: "AssignmentExpression",
-        operator: "=",
-        left: left,
-        right: right
-      };
+      return AST.AssignmentExpression.new('=', left, right)
     }
   / left:LeftHandSideExpression __
     operator:AssignmentOperator __
     right:AssignmentExpressionNoIn
     {
-      return {
-        type: "AssignmentExpression",
-        operator: operator,
-        left: left,
-        right: right
-      };
+      return AST.AssignmentExpression.new(operator, left, right)
     }
   / ConditionalExpressionNoIn
 
@@ -953,16 +831,12 @@ AssignmentOperator
 
 Expression
   = head:AssignmentExpression tail:(__ "," __ AssignmentExpression)* {
-      return tail.length > 0
-        ? { type: "SequenceExpression", expressions: buildList(head, tail, 3) }
-        : head;
+      return AST.SequenceExpression.new(buildList(head, tail, 3)) if tail.size() > 0 else head
     }
 
 ExpressionNoIn
   = head:AssignmentExpressionNoIn tail:(__ "," __ AssignmentExpressionNoIn)* {
-      return tail.length > 0
-        ? { type: "SequenceExpression", expressions: buildList(head, tail, 3) }
-        : head;
+      return AST.SequenceExpression.new(buildList(head, tail, 3)) if tail.size() > 0 else head
     }
 
 // ----- A.4 Statements -----
@@ -986,10 +860,7 @@ Statement
 
 Block
   = "{" __ body:(StatementList __)? "}" {
-      return {
-        type: "BlockStatement",
-        body: optionalList(extractOptional(body, 0))
-      };
+      return AST.BlockStatement.new(optionalList(extractOptional(body, 0)))
     }
 
 StatementList
@@ -997,11 +868,7 @@ StatementList
 
 VariableStatement
   = VarToken __ declarations:VariableDeclarationList EOS {
-      return {
-        type: "VariableDeclaration",
-        declarations: declarations,
-        kind: "var"
-      };
+      return AST.VariableDeclaration.new(declarations, &"var")
     }
 
 VariableDeclarationList
@@ -1016,20 +883,12 @@ VariableDeclarationListNoIn
 
 VariableDeclaration
   = id:Identifier init:(__ Initialiser)? {
-      return {
-        type: "VariableDeclarator",
-        id: id,
-        init: extractOptional(init, 1)
-      };
+      return AST.VariableDeclarator.new(id, extractOptional(init, 1))
     }
 
 VariableDeclarationNoIn
   = id:Identifier init:(__ InitialiserNoIn)? {
-      return {
-        type: "VariableDeclarator",
-        id: id,
-        init: extractOptional(init, 1)
-      };
+      return AST.VariableDeclarator.new(id, extractOptional(init, 1))
     }
 
 Initialiser
@@ -1039,14 +898,11 @@ InitialiserNoIn
   = "=" !"=" __ expression:AssignmentExpressionNoIn { return expression; }
 
 EmptyStatement
-  = ";" { return { type: "EmptyStatement" }; }
+  = ";" { return AST.EmptyStatement.new() }
 
 ExpressionStatement
   = !("{" / FunctionToken) expression:Expression EOS {
-      return {
-        type: "ExpressionStatement",
-        expression: expression
-      };
+      return AST.ExpressionStatement.new(expression)
     }
 
 IfStatement
@@ -1055,31 +911,21 @@ IfStatement
     ElseToken __
     alternate:Statement
     {
-      return {
-        type: "IfStatement",
-        test: test,
-        consequent: consequent,
-        alternate: alternate
-      };
+      return AST.IfStatement.new(test, consequent, alternate)
     }
   / IfToken __ "(" __ test:Expression __ ")" __
     consequent:Statement {
-      return {
-        type: "IfStatement",
-        test: test,
-        consequent: consequent,
-        alternate: null
-      };
+      return AST.IfStatement.new(test, consequent)
     }
 
 IterationStatement
   = DoToken __
     body:Statement __
     WhileToken __ "(" __ test:Expression __ ")" EOS
-    { return { type: "DoWhileStatement", body: body, test: test }; }
+    { return AST.DoWhileStatement.new(test, body) }
   / WhileToken __ "(" __ test:Expression __ ")" __
     body:Statement
-    { return { type: "WhileStatement", test: test, body: body }; }
+    { return AST.WhileStatement.new(test, body) }
   / ForToken __
     "(" __
     init:(ExpressionNoIn __)? ";" __
@@ -1088,13 +934,7 @@ IterationStatement
     ")" __
     body:Statement
     {
-      return {
-        type: "ForStatement",
-        init: extractOptional(init, 0),
-        test: extractOptional(test, 0),
-        update: extractOptional(update, 0),
-        body: body
-      };
+      return AST.ForStatement.new(body, extractOptional(test, 0),extractOptional(init, 0), extractOptional(update, 0))
     }
   / ForToken __
     "(" __
@@ -1104,17 +944,7 @@ IterationStatement
     ")" __
     body:Statement
     {
-      return {
-        type: "ForStatement",
-        init: {
-          type: "VariableDeclaration",
-          declarations: declarations,
-          kind: "var"
-        },
-        test: extractOptional(test, 0),
-        update: extractOptional(update, 0),
-        body: body
-      };
+      return AST.ForStatement.new(body, extractOptional(test, 0), AST.VariableDeclaration.new(declarations, &"var"), extractOptional(update, 0))
     }
   / ForToken __
     "(" __
@@ -1124,12 +954,7 @@ IterationStatement
     ")" __
     body:Statement
     {
-      return {
-        type: "ForInStatement",
-        left: left,
-        right: right,
-        body: body
-      };
+      return AST.ForInStatement.new(left, right, body)
     }
   / ForToken __
     "(" __
@@ -1139,56 +964,43 @@ IterationStatement
     ")" __
     body:Statement
     {
-      return {
-        type: "ForInStatement",
-        left: {
-          type: "VariableDeclaration",
-          declarations: declarations,
-          kind: "var"
-        },
-        right: right,
-        body: body
-      };
+      return AST.ForInStatement.new(AST.VariableDeclaration.new(declarations, &"var"), right, body)
     }
 
 ContinueStatement
   = ContinueToken EOS {
-      return { type: "ContinueStatement", label: null };
+      return AST.ContinueStatement.new()
     }
   / ContinueToken _ label:Identifier EOS {
-      return { type: "ContinueStatement", label: label };
+      return AST.ContinueStatement.new(label)
     }
 
 BreakStatement
   = BreakToken EOS {
-      return { type: "BreakStatement", label: null };
+      return AST.BreakStatement.new()
     }
   / BreakToken _ label:Identifier EOS {
-      return { type: "BreakStatement", label: label };
+      return AST.BreakStatement.new(label)
     }
 
 ReturnStatement
   = ReturnToken EOS {
-      return { type: "ReturnStatement", argument: null };
+      return AST.ReturnStatement.new()
     }
   / ReturnToken _ argument:Expression EOS {
-      return { type: "ReturnStatement", argument: argument };
+      return AST.ReturnStatement.new(argument)
     }
 
 WithStatement
   = WithToken __ "(" __ object:Expression __ ")" __
     body:Statement
-    { return { type: "WithStatement", object: object, body: body }; }
+    { return AST.WithStatement.new(object, body) }
 
 SwitchStatement
   = SwitchToken __ "(" __ discriminant:Expression __ ")" __
     cases:CaseBlock
     {
-      return {
-        type: "SwitchStatement",
-        discriminant: discriminant,
-        cases: cases
-      };
+      return AST.SwitchStatement.new(discriminant, cases)
     }
 
 CaseBlock
@@ -1200,9 +1012,10 @@ CaseBlock
     default_:DefaultClause __
     after:(CaseClauses __)? "}"
     {
-      return optionalList(extractOptional(before, 0))
-        .concat(default_)
-        .concat(optionalList(extractOptional(after, 0)));
+      var list:Array = optionalList(extractOptional(before, 0))
+      list.append_array(default_)
+      list.append_array(optionalList(extractOptional(after, 0)))
+      return list
     }
 
 CaseClauses
@@ -1210,72 +1023,45 @@ CaseClauses
 
 CaseClause
   = CaseToken __ test:Expression __ ":" consequent:(__ StatementList)? {
-      return {
-        type: "SwitchCase",
-        test: test,
-        consequent: optionalList(extractOptional(consequent, 1))
-      };
+      return AST.SwitchCase.new(test, optionalList(extractOptional(consequent, 1)))
     }
 
 DefaultClause
   = DefaultToken __ ":" consequent:(__ StatementList)? {
-      return {
-        type: "SwitchCase",
-        test: null,
-        consequent: optionalList(extractOptional(consequent, 1))
-      };
+      return AST.SwitchCase.new(null, optionalList(extractOptional(consequent, 1)))
     }
 
 LabelledStatement
   = label:Identifier __ ":" __ body:Statement {
-      return { type: "LabeledStatement", label: label, body: body };
+      return AST.LabeledStatement.new(label, body)
     }
 
 ThrowStatement
   = ThrowToken _ argument:Expression EOS {
-      return { type: "ThrowStatement", argument: argument };
+      return AST.ThrowStatement.new(argument)
     }
 
 TryStatement
   = TryToken __ block:Block __ handler:Catch __ finalizer:Finally {
-      return {
-        type: "TryStatement",
-        block: block,
-        handler: handler,
-        finalizer: finalizer
-      };
+      return AST.TryStatement.new(block, handler, finalizer)
     }
   / TryToken __ block:Block __ handler:Catch {
-      return {
-        type: "TryStatement",
-        block: block,
-        handler: handler,
-        finalizer: null
-      };
+      return AST.TryStatement.new(block, handler, null)
     }
   / TryToken __ block:Block __ finalizer:Finally {
-      return {
-        type: "TryStatement",
-        block: block,
-        handler: null,
-        finalizer: finalizer
-      };
+      return AST.TryStatement.new(block, null, finalizer)
     }
 
 Catch
   = CatchToken __ "(" __ param:Identifier __ ")" __ body:Block {
-      return {
-        type: "CatchClause",
-        param: param,
-        body: body
-      };
+      return AST.CatchClause.new(param, body)
     }
 
 Finally
   = FinallyToken __ block:Block { return block; }
 
 DebuggerStatement
-  = DebuggerToken EOS { return { type: "DebuggerStatement" }; }
+  = DebuggerToken EOS { return AST.DebuggerStatement.new() }
 
 // ----- A.5 Functions and Programs -----
 
@@ -1284,12 +1070,7 @@ FunctionDeclaration
     "(" __ params:(FormalParameterList __)? ")" __
     "{" __ body:FunctionBody __ "}"
     {
-      return {
-        type: "FunctionDeclaration",
-        id: id,
-        params: optionalList(extractOptional(params, 0)),
-        body: body
-      };
+      return AST.FunctionDeclaration.new(id, optionalList(extractOptional(params, 0)), body)
     }
 
 FunctionExpression
@@ -1297,12 +1078,7 @@ FunctionExpression
     "(" __ params:(FormalParameterList __)? ")" __
     "{" __ body:FunctionBody __ "}"
     {
-      return {
-        type: "FunctionExpression",
-        id: extractOptional(id, 0),
-        params: optionalList(extractOptional(params, 0)),
-        body: body
-      };
+      return AST.FunctionExpression.new(extractOptional(id, 0), optionalList(extractOptional(params, 0)), body)
     }
 
 FormalParameterList
@@ -1312,18 +1088,12 @@ FormalParameterList
 
 FunctionBody
   = body:SourceElements? {
-      return {
-        type: "BlockStatement",
-        body: optionalList(body)
-      };
+      return AST.BlockStatement.new(optionalList(body))
     }
 
 Program
   = body:SourceElements? {
-      return {
-        type: "Program",
-        body: optionalList(body)
-      };
+      return AST.Program.new(optionalList(body))
     }
 
 SourceElements

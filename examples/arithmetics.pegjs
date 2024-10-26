@@ -2,7 +2,10 @@
 // ==========================
 //
 // Accepts expressions like "2 * (3 + 4)" and computes their value.
-
+{{
+# ---- globals
+const TEST = 42
+}}
 Expression
   = head:Term tail:(_ ("+" / "-") _ Term)* {
       return tail.reduce(func (result, element):
