@@ -274,7 +274,7 @@ func peg_buildStructuredError(expected, found, location)->SyntaxError:
 
 ##EXPRESSIONS##
 
-func peg_parse(input: String, options = {})->Result:
+func parse(input: String, options = {})->Result:
   self.options = options
   self.input = input
   peg_currPos = options.get('peg_currPos', 0)

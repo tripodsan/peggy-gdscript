@@ -210,13 +210,13 @@ NumericLiteral "number"
 
 DecimalLiteral
   = DecimalIntegerLiteral "." DecimalDigit* ExponentPart? {
-      return AST.NumberLiteral.new(text().to_float())
+      return AST.Literal.new(text().to_float())
     }
   / "." DecimalDigit+ ExponentPart? {
-      return AST.NumberLiteral.new(text().to_float())
+      return AST.Literal.new(text().to_float())
     }
   / DecimalIntegerLiteral ExponentPart? {
-      return AST.NumberLiteral.new(text().to_float())
+      return AST.Literal.new(text().to_float())
     }
 
 DecimalIntegerLiteral
@@ -485,16 +485,21 @@ ArrayLiteral
 ElementList
   = head:(
       elision:(Elision __)? element:AssignmentExpression {
-        return AST.ArrayExpression.new(optionalList(extractOptional(elision, 0)), element)
+        var array = optionalList(extractOptional(elision, 0))
+        array.push_back(element)
+        return array
       }
     )
     tail:(
       __ "," __ elision:(Elision __)? element:AssignmentExpression {
-        return AST.ArrayExpression.new(optionalList(extractOptional(elision, 0)), element)
+        var array = optionalList(extractOptional(elision, 0))
+        array.push_back(element)
+        return array
       }
     )* {
-       head.append_array(tail)
-       return head
+      for a in tail:
+        head.append_array(a)
+      return head
     }
 
 Elision
