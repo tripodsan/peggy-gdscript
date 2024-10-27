@@ -12,6 +12,14 @@ class Result extends RefCounted:
     self.error = error
     self.expected = expected
 
+class CacheEntry:
+  var nextPos:int
+  var result
+
+  func _init(pos:int, result):
+    self.nextPos = pos
+    self.result = result
+
 class SyntaxError extends RefCounted:
   var message:String
   var expected
@@ -138,6 +146,7 @@ var peg_posDetailsCache:Array
 var peg_maxFailPos:int
 var peg_maxFailExpected:Array
 var peg_silentFails
+var peg_resultsCache := {}
 
 ##TABLES##
 
@@ -275,6 +284,7 @@ func peg_parse(input: String, options = {})->Result:
   peg_maxFailExpected = options.get('peg_maxFailExpected', [])
   peg_silentFails = options.get('peg_silentFails', 0)
   peg_source = options.get('grammarSource', '')
+  peg_resultsCache.clear()
 ##START_RULES##
 
   var peg_result = peg_startRuleFunction.call();

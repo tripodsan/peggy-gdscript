@@ -210,13 +210,13 @@ NumericLiteral "number"
 
 DecimalLiteral
   = DecimalIntegerLiteral "." DecimalDigit* ExponentPart? {
-      return AST.Literal.new(text().to_float())
+      return AST.NumberLiteral.new(text().to_float())
     }
   / "." DecimalDigit+ ExponentPart? {
-      return AST.Literal.new(text().to_float())
+      return AST.NumberLiteral.new(text().to_float())
     }
   / DecimalIntegerLiteral ExponentPart? {
-      return AST.Literal.new(text().to_float())
+      return AST.NumberLiteral.new(text().to_float())
     }
 
 DecimalIntegerLiteral
@@ -309,7 +309,7 @@ UnicodeEscapeSequence
 
 RegularExpressionLiteral "regular expression"
   = "/" pattern:$RegularExpressionBody "/" flags:$RegularExpressionFlags {
-      return AST.Literal.new(RegExp.new(pattern))
+      return AST.RegExLiteral.new(pattern, flags)
     }
 
 RegularExpressionBody
