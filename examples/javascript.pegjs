@@ -163,6 +163,7 @@ Keyword
   / IfToken
   / InstanceofToken
   / InToken
+  / LetToken
   / NewToken
   / ReturnToken
   / SwitchToken
@@ -422,6 +423,7 @@ IfToken         = "if"         !IdentifierPart
 ImportToken     = "import"     !IdentifierPart
 InstanceofToken = "instanceof" !IdentifierPart
 InToken         = "in"         !IdentifierPart
+LetToken        = "let"        !IdentifierPart
 NewToken        = "new"        !IdentifierPart
 NullToken       = "null"       !IdentifierPart
 ReturnToken     = "return"     !IdentifierPart
@@ -872,8 +874,8 @@ StatementList
   = head:Statement tail:(__ Statement)* { return buildList(head, tail, 1); }
 
 VariableStatement
-  = VarToken __ declarations:VariableDeclarationList EOS {
-      return AST.VariableDeclaration.new(declarations, &"var")
+  = key: ($VarToken / $LetToken / $ConstToken) __ declarations:VariableDeclarationList EOS {
+      return AST.VariableDeclaration.new(declarations, key, error)
     }
 
 VariableDeclarationList

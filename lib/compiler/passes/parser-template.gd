@@ -26,6 +26,9 @@ class SyntaxError extends RefCounted:
   var found
   var location
 
+  func _to_string() -> String:
+    return 'SyntaxError: %s' % message
+
   func _init(message:String, expected, found, location):
     self.message = message
     self.expected = expected
@@ -33,28 +36,29 @@ class SyntaxError extends RefCounted:
     self.location = location
 
   func format(sources)->String:
-    var str = "Error: " + message
+    var str = "SyntaxError: " + message
     if location:
       var src = null
       for source in sources:
-        if source == self.location.source:
+        if source.source == self.location.source:
           src = source.text.split('\n')
           break
 
       var s = location.start
-      var offset_s = location.source.offset.call(s) if (location.source && (location.source.offset is Callable)) else s
+      var offset_s = s;#location.source.offset.call(s) if (location.source && (location.source.offset is Callable)) else s
       var loc = '%s: %d:%d' % [location.source, offset_s.line, offset_s.column]
       if src:
         var e = location.end
-        var filler = "".rpad(offset_s.line.toString().length())
         var line = src[s.line - 1]
         var last = e.column if s.line == e.line else line.length() + 1
+        var lineNr = str(offset_s.line)
+        var filler = " ".repeat(lineNr.length())
         var hatLen = (last - s.column) || 1
         str += "\n --> " + loc + "\n";
         str += filler + " |\n"
-        str += offset_s.line + " | " + line + "\n"
-        str += filler + " | " + "".rpad(s.column - 1)
-        str += "".rpad(hatLen, "^")
+        str += lineNr + " | " + line + "\n"
+        str += filler + " | " + " ".repeat(s.column - 1)
+        str += "^".repeat(hatLen)
       else:
         str += "\n at " + loc
     return str
@@ -156,7 +160,7 @@ func next()->String:
   return ''
 
 func is_failed(s):
-  return s is String and s == peg_FAILED
+  return peg_error || (s is String and s == peg_FAILED)
 
 func text()->String:
   return input.substr(peg_savedPos, peg_currPos - peg_savedPos)
@@ -174,19 +178,17 @@ func range():
 func location():
   return peg_computeLocation(peg_savedPos, peg_currPos)
 
-func expected(description, location):
+func expected(description, location = null):
   location = location if location else peg_computeLocation(peg_savedPos, peg_currPos)
-  assert(false, 'structural error')
-  #throw peg_buildStructuredError(
-  #[peg_otherExpectation(description)],
-  #input.substring(peg_savedPos, peg_currPos),
-  #location
-  #);
+  peg_error = peg_buildStructuredError(
+    [peg_otherExpectation(description)],
+    input.substr(peg_savedPos, peg_currPos - peg_savedPos),
+    location
+  )
 
-func error(message, location):
+func error(message, location = null):
   location = location if location else peg_computeLocation(peg_savedPos, peg_currPos)
-  assert(false, 'simple error')
-  #throw peg_buildSimpleError(message, location)
+  peg_error = peg_buildSimpleError(message, location)
 
 func peg_literalExpectation(text:String, ignoreCase:bool):
   return { type = "literal", text = text, ignoreCase = ignoreCase }
@@ -283,20 +285,11 @@ func parse(input: String, options = {})->Result:
   peg_maxFailPos = peg_currPos
   peg_maxFailExpected = options.get('peg_maxFailExpected', [])
   peg_silentFails = options.get('peg_silentFails', 0)
-  peg_source = options.get('grammarSource', '')
+  peg_source = options.get('source', '')
   peg_resultsCache.clear()
 ##START_RULES##
 
   var peg_result = peg_startRuleFunction.call();
-
-  #if options.has('peg_library'):
-    #return {
-      #"peg_result": peg_result,
-      #"peg_currPos": peg_currPos,
-      #"peg_FAILED": peg_FAILED,
-      #"peg_maxFailExpected": peg_maxFailExpected,
-      #"peg_maxFailPos": peg_maxFailPos,
-    #}
 
   if (!is_failed(peg_result) && peg_currPos == input.length()):
     return Result.new(peg_result)
@@ -304,9 +297,10 @@ func parse(input: String, options = {})->Result:
   if (!is_failed(peg_result) && peg_currPos < input.length()):
     peg_fail(peg_endExpectation());
 
-  peg_error = peg_buildStructuredError(
-    peg_maxFailExpected,
-    input[peg_maxFailPos] if peg_maxFailPos < input.length() else null,
-    peg_computeLocation(peg_maxFailPos, peg_maxFailPos + 1) if peg_maxFailPos < input.length() else peg_computeLocation(peg_maxFailPos, peg_maxFailPos)
-  );
+  if !peg_error:
+    peg_error = peg_buildStructuredError(
+      peg_maxFailExpected,
+      input[peg_maxFailPos] if peg_maxFailPos < input.length() else null,
+      peg_computeLocation(peg_maxFailPos, peg_maxFailPos + 1) if peg_maxFailPos < input.length() else peg_computeLocation(peg_maxFailPos, peg_maxFailPos)
+    );
   return Result.new(peg_result, peg_error, peg_maxFailExpected)
