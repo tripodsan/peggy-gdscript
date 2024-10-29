@@ -119,6 +119,10 @@ class PeggyCLI extends Command {
         "Name of a global variable into which the parser object is assigned to when no module loader is detected."
       )
       .option(
+        "-p, --parser-template <file>",
+        "File to use for the parser template."
+      )
+      .option(
         "-n, --class-name <variable>",
         "Name of the gd script class name."
       )

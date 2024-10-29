@@ -1,5 +1,5 @@
 {
-  "name": "peggy",
+  "name": "@tripodsan/peggy-godot",
   "version": "4.1.1",
   "description": "Parser generator for JavaScript",
   "keywords": [
@@ -22,7 +22,7 @@
   "jsdelivr": "browser/peggy.min.js",
   "types": "lib/peg.d.ts",
   "bin": {
-    "peggy": "bin/peggy.js"
+    "peggy-godot": "bin/peggy.js"
   },
   "scripts": {
     "clean": "rimraf -g build browser bin/*.map && mkdir browser",
